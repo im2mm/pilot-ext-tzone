@@ -1,7 +1,0 @@
-{
-  "sources": [
-    "mnemo_library/core.json",
-    "mnemo_library/hvac.json",
-    "mnemo_library/electrical.json"
-  ]
-}
