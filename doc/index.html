@@ -7,7 +7,7 @@
         body {
             font-family: "Segoe UI", Arial, sans-serif;
             color: #1f2937;
-            max-width: 820px;
+            max-width: 860px;
             margin: 0 auto;
             padding: 28px;
             line-height: 1.55;
@@ -34,8 +34,8 @@
             margin-right: 6px;
         }
         .muted { color: #64748b; font-size: 13px; }
-        table { border-collapse: collapse; margin-top: 8px; }
-        th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; font-size: 13px; }
+        table { border-collapse: collapse; margin-top: 8px; width: 100%; }
+        th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; font-size: 13px; vertical-align: top; }
         th { background: #f8fafc; }
     </style>
 </head>
@@ -43,72 +43,102 @@
     <h1>Temperature and Humidity Report</h1>
     <p class="muted">
         <span class="badge">PILOT Extension</span>
-        Generates a temperature and humidity readings report for selected vehicles over a chosen time range.
+        Generates a temperature and humidity readings report for selected
+        vehicles over a chosen time range.
     </p>
 
     <h2>Purpose</h2>
     <p>
-        Adds a navigation tab to PILOT for building temperature and humidity reports
-        across the fleet. The operator picks any number of vehicles, sets a From / To
-        time range, and exports the resulting sensor readings to the main panel or to CSV.
+        Adds a navigation tab to PILOT — its icon sits at the top of the side rail,
+        in the same style as the <i>planets</i> example. The operator picks any
+        number of vehicles, sets a From / To time range, and the paired main panel
+        fills with temperature and humidity readings. The result can also be
+        rendered as a chart or exported to CSV.
     </p>
+
+    <h2>Files</h2>
+    <table>
+        <tr><th>File</th><th>Role</th></tr>
+        <tr><td><code>Module.js</code></td><td>Entry point; creates Tab + Map, injects <code>style.css</code>.</td></tr>
+        <tr><td><code>Tab.js</code></td><td>Navigation tab (extends <code>Pilot.utils.LeftBarPanel</code>); vehicle checkbox grid + From/To/Generate toolbar.</td></tr>
+        <tr><td><code>Map.js</code></td><td>Main panel; report grid, Highcharts viewer, CSV export.</td></tr>
+        <tr><td><code>style.css</code></td><td>Scoped <code>.thr-</code> styles, Tailwind palette.</td></tr>
+        <tr><td><code>doc/index.html</code></td><td>This page.</td></tr>
+    </table>
 
     <h2>Features</h2>
     <ul>
-        <li>Navigation tab with vehicle list and checkbox selection.</li>
-        <li>Select all / clear all helpers, and one-click reload from PILOT.</li>
-        <li>From / To date-time pickers (uses <code>Pilot.utils.DateTimeField</code> when available).</li>
-        <li>Report grid with vehicle, time, temperature (°C) and humidity (%).</li>
+        <li>Top-aligned icon tab in the left navigation rail (<code>iconAlign: 'top'</code>).</li>
+        <li>Vehicle list with multi-select checkboxes (header checkbox = select all).</li>
+        <li>Select all / Clear / Reload helpers and one-click refresh.</li>
+        <li>From / To pickers — <code>Pilot.utils.DateTimeField</code> when available, falls back to <code>datefield</code>.</li>
+        <li>Report grid grouped by vehicle: time, temperature (°C), humidity (%).</li>
+        <li>Optional Highcharts viewer with dual Y axes (temperature / humidity).</li>
         <li>One-click CSV export of the visible report.</li>
-        <li>Localized strings through <code>l(...)</code>.</li>
+        <li>Strings localized through <code>l(...)</code>.</li>
     </ul>
 
     <h2>Data Sources</h2>
     <ul>
         <li>
-            <b>Vehicles:</b> <code>/ax/tree.php</code> with <code>vehs=1, state=1</code>.
-            Hierarchical groups are flattened; the parent group name is shown next to each vehicle.
+            <b>Vehicles:</b> read directly from the in-memory online tree
+            <code>skeleton.navigation.online.online_tree.store</code>
+            using <code>cascadeBy</code> (matches <code>communal/Tree.js</code>).
+            Falls back to <code>/ax/tree.php?vehs=1&amp;state=1</code> when the
+            tree is unavailable; the hierarchical <code>children</code> payload
+            is walked recursively as AI_SPECS §5 requires.
         </li>
         <li>
-            <b>Report:</b> <code>/ax/report.php</code> called with
-            <code>type=temp_humidity</code>, comma-separated <code>agents</code>, and
-            Unix-second <code>from</code> / <code>to</code> parameters. The response is
-            expected to be an array (or <code>{rows: [...]}</code>) of objects with
-            <code>agentid</code>, <code>ts</code>, <code>temp</code>, <code>humidity</code>.
+            <b>Report:</b> <code>POST /ax/report.php</code> with
+            <code>type=temp_humidity</code>, comma-separated <code>agents</code>,
+            and Unix-second <code>from</code> / <code>to</code> parameters.
+            The endpoint is configurable via <code>reportUrl</code> /
+            <code>reportType</code> on the Map class.
         </li>
     </ul>
-
-    <h2>Setup</h2>
-    <ol>
-        <li>Upload <code>Module.js</code>, <code>style.css</code>, and <code>doc/index.html</code> to your extension host.</li>
-        <li>Register the extension <code>Module.js</code> URL inside PILOT.</li>
-        <li>Reload PILOT — the <b>Temp/Humidity</b> tab appears in the left navigation.</li>
-        <li>Open the tab, tick vehicles, choose <b>From</b> / <b>To</b>, press <b>Generate Report</b>.</li>
-    </ol>
 
     <h2>Expected Report Response</h2>
     <pre>{
   "rows": [
-    { "agentid": 101, "ts": 1715600000, "temp": 4.2, "humidity": 71.3 },
-    { "agentid": 101, "ts": 1715603600, "temp": 4.4, "humidity": 70.8 },
+    { "agentid": 101, "ts": 1715600000, "temp":   4.2, "humidity": 71.3 },
+    { "agentid": 101, "ts": 1715603600, "temp":   4.4, "humidity": 70.8 },
     { "agentid": 204, "ts": 1715600000, "temp": -18.6, "humidity": 55.0 }
   ]
 }</pre>
+    <p class="muted">
+        The normalizer also accepts <code>temperature</code>/<code>hum</code>/<code>t1</code>/<code>h1</code> and either
+        <code>{rows: [...]}</code>, <code>{data: [...]}</code>, or a bare array.
+    </p>
+
+    <h2>Setup</h2>
+    <ol>
+        <li>Upload <code>Module.js</code>, <code>Tab.js</code>, <code>Map.js</code>, <code>style.css</code>, and <code>doc/index.html</code> to your extension host.</li>
+        <li>Register the extension's <code>Module.js</code> URL inside PILOT.</li>
+        <li>Reload PILOT — the <b>Temp/Humidity</b> tab appears in the left navigation, icon on top.</li>
+        <li>Open the tab, tick vehicles, choose <b>From</b> / <b>To</b>, press <b>Generate Report</b>.</li>
+    </ol>
 
     <h2>Limitations</h2>
     <ul>
         <li>
-            Requires that the host PILOT build exposes a temperature/humidity report
-            endpoint under <code>/ax/report.php</code>. If your installation uses a
-            different path or payload format, adjust the URL/params in
-            <code>MainPanel.loadReport</code> and the field normalization there.
+            Requires that the host PILOT build exposes a temperature/humidity
+            report endpoint reachable at <code>reportUrl</code>. If your installation
+            uses a different sensor-history path or payload, override
+            <code>reportUrl</code> / <code>reportType</code> or adjust the
+            normalization block in <code>Map.js</code> → <code>loadReport</code>.
         </li>
         <li>
-            Requires <code>Pilot.utils.LeftBarPanel</code> in the runtime for the styled
-            navigation tab; falls back to <code>Ext.panel.Panel</code> if it is missing.
+            Falls back to <code>Ext.panel.Panel</code> if
+            <code>Pilot.utils.LeftBarPanel</code> is missing in the target runtime
+            (icon-on-top look depends on the host build providing that class).
         </li>
         <li>
-            CSV export runs in the browser (Blob download) and is not pushed back to PILOT.
+            Chart view requires <code>window.Highcharts</code>; otherwise the
+            grid and CSV export still work.
+        </li>
+        <li>
+            CSV export runs in the browser (Blob download) and is not pushed
+            back to PILOT.
         </li>
     </ul>
 </body>
